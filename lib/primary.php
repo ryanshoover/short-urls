@@ -2,6 +2,9 @@
 
 class WPEURLPrimary {
 
+    protected $options_slug = 'wpe_url_shortener';
+    protected $plugin_options = array();
+
 	public static function get_instance() {
 
         static $instance = null;
@@ -12,16 +15,18 @@ class WPEURLPrimary {
         return $instance;
     }
 
-	private function __clone(){
-    }
+	private function __clone(){}
 
-    private function __wakeup(){
-    }
+    private function __wakeup(){}
 
 	protected function __construct() {
+        $this->plugin_options = get_option( $this->options_slug, array() );
+
         add_action('init', array( $this, 'create_link_cpt' ) );
 
-        add_action( 'wp', array( $this, 'url_maybe_redirect' ) );
+        add_action( 'wp', array( $this, 'maybe_redirect_to_url' ) );
+
+        add_action( 'wp', array( $this, 'maybe_redirect_to_default' ) );
 
         add_filter( 'post_type_link', array( $this, 'remove_cpt_slug' ), 10, 2 );
 
@@ -80,10 +85,10 @@ class WPEURLPrimary {
      *
      * @since 0.1.0
      */
-    public function url_maybe_redirect() {
+    public function maybe_redirect_to_url() {
 
         if( is_admin() || ! is_single() ) {
-            return;
+            return false;
         }
 
         $url_pattern = '#\b(([\w-]+://?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))#iS';
@@ -185,4 +190,27 @@ class WPEURLPrimary {
         if ( ! empty( $query->query['name'] ) )
             $query->set( 'post_type', array( 'post', 'link', 'page' ) );
     }
+
+    /**
+     * Redirects the front page and 404 pages to the provided URL
+     *
+     * If we should be redirecting these pages, we'll send the user to the provided URL in plugin options
+     */
+    public function maybe_redirect_to_default() {
+
+        // Abort if it's not the front page or a 404 page
+        if ( ! is_front_page() && ! is_404() ) {
+            return false;
+        }
+
+        // Abort if we don't have a URL to redirect to
+        if ( ! isset( $this->plugin_options['wpe_redirect_url'] ) || empty( $this->plugin_options['wpe_redirect_url'] ) ) {
+            return false;
+        }
+
+        wp_redirect( $this->plugin_options['wpe_redirect_url'] );
+        exit;
+    }
 }
+
+WPEURLPrimary::get_instance();
