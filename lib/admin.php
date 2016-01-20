@@ -165,13 +165,13 @@ HTML;
     public function add_links_metaboxes() {
         $prefix = 'wpeurl_link_';
 
-        $utm_description = __( '<p>Enter your UTM values below to build an analytics-friendly URL.</p><p>All values are optional.</p>', 'wpeurl' );
+        $utm_description = __( '<p>Enter your UTM values below to build an analytics-friendly URL.</p><p>* All values are optional.</p>', 'wpeurl' );
 
         $default_url = isset( $this->plugin_options['wpe_redirect_url'] ) ? $this->plugin_options['wpe_redirect_url'] : 'https://wpengine.com';
 
         $cmb = new_cmb2_box( array(
             'id'      => $prefix . 'analytics',
-            'title'   => __( 'Custom Link Settings', 'wpeurl' ),
+            'title'   => __( 'Link Settings', 'wpeurl' ),
             'object_types'   => array( 'link' ),
         ) );
 
@@ -211,30 +211,35 @@ HTML;
             'name' => __( 'Campaign Source', 'wpeurl' ),
             'id'   => $prefix . 'utm_source',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Medium', 'wpeurl' ),
             'id'   => $prefix . 'utm_medium',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Term', 'wpeurl' ),
             'id'   => $prefix . 'utm_term',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Content', 'wpeurl' ),
             'id'   => $prefix . 'utm_content',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Name', 'wpeurl' ),
             'id'   => $prefix . 'utm_campaign',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
     }
 
