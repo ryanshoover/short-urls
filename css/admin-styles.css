@@ -1,0 +1,58 @@
+.overflow-scroll {
+	display: inline-block;
+	max-width: 90%;
+	max-height: 5em;
+	overflow: scroll;
+	border: 1px solid #EEE;
+	padding: 10px;
+	margin-right: 20px;
+	background: #FAFAFA;
+}
+
+.cmb2-metabox:after {
+	display: block;
+	content: '';
+	clear: both;
+}
+
+.cmb-row.inline {
+	width: auto;
+	min-width: 200px;
+	float: left;
+	padding-right: 30px;
+}
+
+.cmb-row.inline .cmb-th, .cmb-row.inline .cmb-td {
+	width: 40% !important;
+	float: left !important;
+}
+
+.modal.copied p {
+	position: absolute;
+	padding: 75px;
+	width: auto;
+	height: auto;
+	background: #FFF;
+	border: 1px solid #EEE;
+	top: 50%;
+	left: 50%;
+	z-index: 9999;
+	transform: translateX( -50% ) translateY( -50% );
+	font-size: 1.8em;
+	text-align: center;
+}
+
+.modal.copied {
+	display: none;
+	position: absolute;
+	z-index: 9995;
+	width: 100%;
+	height: 100%;
+	top: 0;
+	left: 0;
+	background: rgba(0,0,0,0.5);
+}
+
+input#wpeurl_link_display_url {
+	max-width: 275px;
+}

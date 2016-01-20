@@ -3,9 +3,10 @@
 class WPEURLAdmin extends WPEURLPrimary {
 
 	private $url;
+    protected $options_page = '';
+    protected $title = '';
 
-	public static function get_instance()
-    {
+	public static function get_instance() {
         static $instance = null;
 
         if ( null === $instance ) {
@@ -15,30 +16,43 @@ class WPEURLAdmin extends WPEURLPrimary {
         return $instance;
     }
 
-    private function __clone(){
-    }
+    private function __clone(){}
 
 
-    private function __wakeup(){
-    }
+    private function __wakeup(){}
 
 	protected function __construct() {
 
-		parent::get_instance();
+		parent::__construct();
+
+        $this->title = __( 'Link Shortener', 'wpeurl' );
 
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_styles' ), 15 );
-        add_action( 'manage_link_posts_custom_column', array( $this, 'do_posts_view_count_column' ), 10, 2 );
+
+        // Custom management of the links post type
+        add_filter( 'manage_link_posts_columns', array( $this, 'add_posts_view_count_column' ) );
+        add_action( 'save_post', array( $this, 'post_save_assign_post_slug'), 15 );
         add_action( 'add_meta_boxes_link',   array( $this, 'maybe_show_link_views' ) );
-        add_action( 'cmb2_init',             array( $this, 'add_links_metaboxes' ) );
+        add_action( 'manage_link_posts_custom_column', array( $this, 'do_posts_view_count_column' ), 10, 2 );
+
+        // Create the link metabox
+        add_action( 'cmb2_admin_init', array( $this, 'add_links_metaboxes' ) );
 
         add_action( 'cmb2_render_readonly', array( $this, 'render_callback_readonly'), 10, 5 );
         add_action( 'cmb2_render_post_slug',   array( $this, 'render_callback_post_slug' ), 10, 5 );
-        add_action( 'save_post', array( $this, 'post_save_assign_post_slug'), 15 );
 
-        add_filter( 'manage_link_posts_columns', array( $this, 'add_posts_view_count_column' ) );
+        // Filter saving the CMB2 meta values
         add_filter( 'cmb2_override_wpeurl_link_post_slug_meta_value', array( $this, 'filter_post_slug_value'), 10, 2 );
         add_filter( 'cmb2_override_wpeurl_link_redirect_url_meta_value', array( $this, 'filter_redirect_url_value'), 10, 2 );
         add_filter( 'cmb2_override_wpeurl_link_display_url_meta_value', array( $this, 'filter_display_url_value'), 10, 2 );
+
+        // Create the options page
+        add_action( 'admin_init', array( $this, 'init' ) );
+        add_action( 'admin_menu', array( $this, 'add_options_page' ) );
+        add_action( 'cmb2_init',  array( $this, 'add_options_metaboxes' ) );
+
+        // Customize the WordPress dashboard
+        add_action( 'admin_menu', array( $this, 'maybe_remove_menus' ), 99 );
 	}
 
     /**
@@ -46,9 +60,9 @@ class WPEURLAdmin extends WPEURLPrimary {
      * @since 0.1.0
      */
     public function enqueue_admin_styles() {
-        global $wpeurl_path, $wpeurl_url;
         wp_enqueue_style( 'cmb2-styles' );
-        wp_enqueue_script( 'wpeurl_admin_script', $wpeurl_url . 'js/admin-scripts.js', array(), filemtime( $wpeurl_path . 'js/admin-scripts.js') );
+        wp_enqueue_style( 'wpeurl_admin_styles', WPEURL_URL . 'css/admin-styles.css' );
+        wp_enqueue_script( 'wpeurl_admin_script', WPEURL_URL . 'js/admin-scripts.js' );
     }
 
     /**
@@ -57,7 +71,7 @@ class WPEURLAdmin extends WPEURLPrimary {
      * @since 0.3.0
      */
     public function add_posts_view_count_column( $defaults ) {
-        $defaults['view_count'] = __('Total Views', 'wpeurl');
+        $defaults['view_count'] = __('Total Clicks', 'wpeurl');
 
         return $defaults;
     }
@@ -87,6 +101,10 @@ class WPEURLAdmin extends WPEURLPrimary {
         }
     }
 
+    /**
+     * Renders the metabox that shows the latest link views
+     * @param  object $post The post object that is currently being edited
+     */
     public function create_link_views( $post ) {
         $views = get_post_meta( $post->ID, 'wpe_view_data', true );
 
@@ -147,12 +165,14 @@ HTML;
     public function add_links_metaboxes() {
         $prefix = 'wpeurl_link_';
 
-        $utm_description = __( '<p>Enter your UTM values below to build an analytics-friendly URL.</p><p>All values are optional.</p>', 'wpeurl' );
+        $utm_description = __( '<p>Enter your UTM values below to build an analytics-friendly URL.</p><p>* All values are optional.</p>', 'wpeurl' );
+
+        $default_url = isset( $this->plugin_options['wpe_redirect_url'] ) ? $this->plugin_options['wpe_redirect_url'] : 'https://wpengine.com';
 
         $cmb = new_cmb2_box( array(
             'id'      => $prefix . 'analytics',
-            'title'   => __( 'Custom Link Settings', 'wpeurl' ),
-            'object_types'   => array( 'link', 'post', 'page' ),
+            'title'   => __( 'Link Settings', 'wpeurl' ),
+            'object_types'   => array( 'link' ),
         ) );
 
         if( isset( $_GET['action'] ) && 'edit' == $_GET['action'] ) {
@@ -177,7 +197,7 @@ HTML;
             'desc' => __( 'Where is the final destination of this link?', 'wpeurl' ),
             'id'   => $prefix . 'redirect_url',
             'type' => 'text_url',
-            'value' => 'http://wpengine.com/',
+            'value' => $default_url,
         ) );
 
         $cmb->add_field( array(
@@ -191,30 +211,35 @@ HTML;
             'name' => __( 'Campaign Source', 'wpeurl' ),
             'id'   => $prefix . 'utm_source',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Medium', 'wpeurl' ),
             'id'   => $prefix . 'utm_medium',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Term', 'wpeurl' ),
             'id'   => $prefix . 'utm_term',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Content', 'wpeurl' ),
             'id'   => $prefix . 'utm_content',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
             'name' => __( 'Campaign Name', 'wpeurl' ),
             'id'   => $prefix . 'utm_campaign',
             'type' => 'text_small',
+            'row_classes' => 'inline',
             ) );
     }
 
@@ -253,7 +278,7 @@ HTML;
 
         $redirect = $meta['wpeurl_link_redirect_url'][0] . $spacer . http_build_query( $utms );
 
-        $description = preg_match( $url_pattern, $redirect ) ? '<p class="cmb2-metabox-description">Your expanded URL is<br>' . $redirect . '</p>' : '';
+        $description = preg_match( $url_pattern, $redirect ) ? '<p class="cmb2-metabox-description">Your expanded URL is</p><pre class="overflow-scroll">' . $redirect . '</pre>' : '';
 
         printf( '<input%s readonly>%s %s %s', $field_type_object->concat_attrs( $a, array( 'desc' ) ), $a['desc'], $copy_button, $description );
     }
@@ -303,4 +328,91 @@ HTML;
 
         return $data;
     }
+
+    /**
+     * Register our setting to WP
+     * @since  0.1.0
+     */
+    public function init() {
+        register_setting( $this->options_slug, $this->options_slug );
+    }
+
+    /**
+     * Add menu options page
+     * @since 0.1.0
+     */
+    public function add_options_page() {
+        $this->options_page = add_menu_page( $this->title, $this->title, 'manage_options', $this->options_slug, array( $this, 'admin_page_display' ), 'dashicons-editor-unlink' );
+        // Include CMB CSS in the head to avoid FOUT
+        add_action( "admin_print_styles-{$this->options_slug}", array( 'CMB2_hookup', 'enqueue_cmb_css' ) );
+    }
+
+    /**
+     * Admin page markup. Mostly handled by CMB2
+     * @since  0.1.0
+     */
+    public function admin_page_display() {
+        ?>
+        <div class="wrap cmb2-options-page <?php echo $this->options_slug; ?>">
+
+            <h2><?php echo esc_html( get_admin_page_title() ); ?></h2>
+
+            <div class="card">
+                <?php cmb2_metabox_form( $this->options_slug . '_options', $this->options_slug, array( 'cmb_styles' => false ) ); ?>
+            </div>
+
+        </div>
+        <?php
+    }
+
+    /**
+     * Create an options page
+     *
+     * Create an options page for the plugin
+     */
+    public function add_options_metaboxes() {
+        $prefix = 'wpe_';
+
+        $cmb_options = new_cmb2_box( array(
+            'id'      => $this->options_slug . '_options',
+            'title'   => __( 'WP Engine Plugin Options', 'wpeurl' ),
+            'hookup'  => false,
+            'show_on' => array(
+                'key'   => 'options-page',
+                'value' => array( $this->options_slug )
+            ),
+        ) );
+
+        $cmb_options->add_field( array(
+            'id'    => $prefix . 'show_menus',
+            'name'  => __( 'Hide default WordPress Menus?', 'wpeurl' ),
+            'desc'  => __( 'Do you want to hide the default WordPress menus on this site?', 'wpeurl' ),
+            'type'  => 'checkbox',
+            ) );
+
+        $cmb_options->add_field( array(
+            'id'    => $prefix . 'redirect_url',
+            'name'  => __( 'Redirect front page and 404s?', 'wpeurl' ),
+            'desc'  => __( 'Where do you want to redirect the front page and 404 pages? ', 'wpeurl' ),
+            'type'  => 'text_url',
+            ) );
+    }
+
+    public function maybe_remove_menus() {
+        // Abort if we're not supposed to hide the menus
+        if ( ! isset( $this->plugin_options['wpe_show_menus'] ) || 'on' != $this->plugin_options['wpe_show_menus'] ) {
+            return false;
+        }
+
+        // Remove any unneeded default dashboard menu items
+        remove_menu_page( 'edit.php' );                   //Posts
+        remove_menu_page( 'upload.php' );                 //Media
+        remove_menu_page( 'edit.php?post_type=page' );    //Pages
+        remove_menu_page( 'edit-comments.php' );          //Comments
+        remove_menu_page( 'themes.php' );                 //Appearance
+        remove_menu_page( 'tools.php' );                  //Tools
+        remove_menu_page( 'options-general.php' );        //Settings
+    }
 }
+
+WPEURLAdmin::get_instance();

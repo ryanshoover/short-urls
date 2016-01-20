@@ -2,6 +2,10 @@
 
 class WPEURLPrimary {
 
+    protected $options_slug = 'wpe_url_shortener';
+    protected $plugin_options = array();
+    protected $url_pattern;
+
 	public static function get_instance() {
 
         static $instance = null;
@@ -12,16 +16,17 @@ class WPEURLPrimary {
         return $instance;
     }
 
-	private function __clone(){
-    }
+	private function __clone(){}
 
-    private function __wakeup(){
-    }
+    private function __wakeup(){}
 
 	protected function __construct() {
+        $this->plugin_options = get_option( $this->options_slug, array() );
+        $this->url_pattern    = '#\b(([\w-]+://?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))#iS';
+
         add_action('init', array( $this, 'create_link_cpt' ) );
 
-        add_action( 'wp', array( $this, 'url_maybe_redirect' ) );
+        add_action( 'wp', array( $this, 'maybe_redirect_to_url' ) );
 
         add_filter( 'post_type_link', array( $this, 'remove_cpt_slug' ), 10, 2 );
 
@@ -74,19 +79,17 @@ class WPEURLPrimary {
     }
 
     /**
-     * Maybe redirect to a URL
+     * Maybe redirect to a URL if we have a match
      *
      * Sees if we have a valid URL in postmeta. If so, off we go!
      *
      * @since 0.1.0
      */
-    public function url_maybe_redirect() {
+    public function maybe_redirect_to_url() {
 
-        if( is_admin() || ! is_single() ) {
-            return;
+        if( is_admin() ) {
+            return false;
         }
-
-        $url_pattern = '#\b(([\w-]+://?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))#iS';
 
         $meta = get_post_meta( get_the_ID() );
 
@@ -102,9 +105,29 @@ class WPEURLPrimary {
 
         $redirect = $meta['wpeurl_link_redirect_url'][0] . $spacer . http_build_query( $utms );
 
-        if ( preg_match( $url_pattern, $redirect ) ) {
+        if ( preg_match( $this->url_pattern, $redirect ) ) {
             $this->track_post_view();
             wp_redirect( $redirect );
+            exit;
+        }
+
+        // If we didn't redirect to a shortened link, see if we should redirect to default
+        $this->maybe_redirect_to_default();
+    }
+
+    /**
+     * Redirects the front page and 404 pages to the provided URL
+     *
+     * If we should be redirecting these pages, we'll send the user to the provided URL in plugin options
+     */
+    public function maybe_redirect_to_default() {
+        // Abort if we don't have a URL to redirect to
+        if ( ! isset( $this->plugin_options['wpe_redirect_url'] ) || empty( $this->plugin_options['wpe_redirect_url'] ) ) {
+            return false;
+        }
+
+        if ( preg_match( $this->url_pattern, $this->plugin_options['wpe_redirect_url'] ) ) {
+            wp_redirect( $this->plugin_options['wpe_redirect_url'] );
             exit;
         }
     }
@@ -186,3 +209,5 @@ class WPEURLPrimary {
             $query->set( 'post_type', array( 'post', 'link', 'page' ) );
     }
 }
+
+WPEURLPrimary::get_instance();
