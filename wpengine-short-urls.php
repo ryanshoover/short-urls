@@ -4,7 +4,7 @@
 Plugin Name: WP Engine Short URLs
 Plugin URI: http://wpengine.com
 Description: Creates a URL shortening service
-Version: 0.1
+Version: 0.2
 Author: WP Engine
 Author URI: http://wpengine.com
 Text Domain: wpeurl
