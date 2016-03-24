@@ -212,6 +212,7 @@ HTML;
             'id'   => $prefix . 'utm_medium',
             'type' => 'select',
             'options' => array(
+                ''              => 'Pick a Medium',
                 'sem'           => 'Paid Search',
                 'organicsearch' => 'Organic Search',
                 'referral'      => 'Referral',
