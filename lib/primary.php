@@ -95,13 +95,15 @@ class WPEURLPrimary {
 
         $utms = array();
 
-        foreach( $meta as $key => $value ) {
-            if( false !== strpos( $key, 'wpeurl_link_utm' ) ) {
+        foreach ( $meta as $key => $value ) {
+            if ( ! empty( $value ) && false !== strpos( $key, 'wpeurl_link_utm' ) ) {
                 $utms[ str_replace( 'wpeurl_link_', '', $key ) ] = $value[0];
             }
         }
 
         $spacer = empty( strpos( $meta['wpeurl_link_redirect_url'][0], '?' ) ) ? '?' : '&';
+
+        $spacer = empty( $utms ) ? '' : $spacer;
 
         $redirect = $meta['wpeurl_link_redirect_url'][0] . $spacer . http_build_query( $utms );
 

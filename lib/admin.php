@@ -208,36 +208,49 @@ HTML;
             ) );
 
         $cmb->add_field( array(
-            'name' => __( 'Campaign Source', 'wpeurl' ),
+            'name' => __( 'Medium', 'wpeurl' ),
+            'id'   => $prefix . 'utm_medium',
+            'type' => 'select',
+            'options' => array(
+                ''              => 'Pick a Medium',
+                'sem'           => 'Paid Search',
+                'organicsearch' => 'Organic Search',
+                'referral'      => 'Referral',
+                'direct'        => 'Direct',
+                'organicsocial' => 'Organic Social',
+                'paidsocial'    => 'Paid Social',
+                'email'         => 'Email',
+                'affiliate'     => 'Affiliate',
+                'display'       => 'Display',
+                'content'       => 'Content Distribution',
+                ),
+            'row_classes' => 'inline',
+            ) );
+
+        $cmb->add_field( array(
+            'name' => __( 'Source', 'wpeurl' ),
             'id'   => $prefix . 'utm_source',
             'type' => 'text_small',
             'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
-            'name' => __( 'Campaign Medium', 'wpeurl' ),
-            'id'   => $prefix . 'utm_medium',
+            'name' => __( 'Name', 'wpeurl' ),
+            'id'   => $prefix . 'utm_campaign',
             'type' => 'text_small',
             'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
-            'name' => __( 'Campaign Term', 'wpeurl' ),
-            'id'   => $prefix . 'utm_term',
-            'type' => 'text_small',
-            'row_classes' => 'inline',
-            ) );
-
-        $cmb->add_field( array(
-            'name' => __( 'Campaign Content', 'wpeurl' ),
+            'name' => __( 'Content', 'wpeurl' ),
             'id'   => $prefix . 'utm_content',
             'type' => 'text_small',
             'row_classes' => 'inline',
             ) );
 
         $cmb->add_field( array(
-            'name' => __( 'Campaign Name', 'wpeurl' ),
-            'id'   => $prefix . 'utm_campaign',
+            'name' => __( 'Term', 'wpeurl' ),
+            'id'   => $prefix . 'utm_term',
             'type' => 'text_small',
             'row_classes' => 'inline',
             ) );
@@ -269,12 +282,14 @@ HTML;
         $utms = array();
 
         foreach( $meta as $key => $value ) {
-            if( false !== strpos( $key, 'wpeurl_link_utm' ) ) {
+            if( ! empty( $value ) && false !== strpos( $key, 'wpeurl_link_utm' ) ) {
                 $utms[ str_replace( 'wpeurl_link_', '', $key ) ] = $value[0];
             }
         }
 
         $spacer = empty( strpos( $meta['wpeurl_link_redirect_url'][0], '?' ) ) ? '?' : '&';
+
+        $spacer = empty( $utms ) ? '' : $spacer;
 
         $redirect = $meta['wpeurl_link_redirect_url'][0] . $spacer . http_build_query( $utms );
 
